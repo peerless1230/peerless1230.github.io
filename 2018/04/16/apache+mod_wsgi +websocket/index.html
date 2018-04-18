@@ -16,7 +16,7 @@
 <meta property="og:site_name" content="Space bound">
 <meta property="og:description" content="之前在Openstack Horizon里面，嵌入了xterm + websocket后，在调试验证功能后，部署到了apache中，dashboard的访问没问题，却无法建立websocket连接。（类似的Demo已放在了Github上）并且，在该apache服务器上，通过django的manage.py runserver调试，websocket功能依旧没有问题。那么，问题应该是出在apache">
 <meta property="og:locale" content="zh-CN">
-<meta property="og:updated_time" content="2018-04-17T08:37:33.805Z">
+<meta property="og:updated_time" content="2018-04-18T15:07:01.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="apache+mod_wsgi与websocket的冲突">
 <meta name="twitter:description" content="之前在Openstack Horizon里面，嵌入了xterm + websocket后，在调试验证功能后，部署到了apache中，dashboard的访问没问题，却无法建立websocket连接。（类似的Demo已放在了Github上）并且，在该apache服务器上，通过django的manage.py runserver调试，websocket功能依旧没有问题。那么，问题应该是出在apache">
@@ -169,7 +169,7 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>之前在<code>Openstack Horizon</code>里面，嵌入了<code>xterm + websocket</code>后，在调试验证功能后，部署到了<code>apache</code>中，<code>dashboard</code>的访问没问题，却无法建立<code>websocket</code>连接。（类似的Demo已放在了<a href="">Github</a>上）<br>并且，在该<code>apache</code>服务器上，通过<code>django</code>的<code>manage.py runserver</code>调试，<code>websocket</code>功能依旧没有问题。<br>那么，问题应该是出在<code>apache</code>或者<code>mod_wsgi</code>的请求转发上。</p>
+        <p>之前在<code>Openstack Horizon</code>里面，嵌入了<code>xterm + websocket</code>后，在调试验证功能后，部署到了<code>apache</code>中，<code>dashboard</code>的访问没问题，却无法建立<code>websocket</code>连接。（类似的Demo已放在了<a href="https://github.com/peerless1230/xterm_django" target="_blank" rel="noopener">Github</a>上）<br>并且，在该<code>apache</code>服务器上，通过<code>django</code>的<code>manage.py runserver</code>调试，<code>websocket</code>功能依旧没有问题。<br>那么，问题应该是出在<code>apache</code>或者<code>mod_wsgi</code>的请求转发上。</p>
 <a id="more"></a>
 <h3 id="启用mod-proxy-wstunnel转发websocket请求"><a href="#启用mod-proxy-wstunnel转发websocket请求" class="headerlink" title="启用mod_proxy_wstunnel转发websocket请求"></a>启用mod_proxy_wstunnel转发websocket请求</h3><p>翻阅<a href="https://stackoverflow.com/questions/45362673/websocket-connection-by-apache2-mod-wsgi-django" target="_blank" rel="noopener">apache官方文档</a>，直接暴力搜索<code>websocket</code>，发现了<a href="https://httpd.apache.org/docs/2.4/mod/mod_proxy_wstunnel.html" target="_blank" rel="noopener">Apache Module mod_proxy_wstunnel</a><br>用<code>a2enmod proxy_wstunnel</code>启用了<code>mod_proxy_wstunnel</code>，并且在<code>/etc/apache2/sites-available/000-default.conf</code>中，添加：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;VirtualHost *:80&gt;</span><br><span class="line">    .....</span><br><span class="line">    ProxyPass /horizon/vnfm/xxxx_websocket ws://localhost:80/horizon/vnfm/xxxx_websocket</span><br><span class="line">    .....</span><br><span class="line">&lt;/VirtualHost&gt;</span><br></pre></td></tr></table></figure></p>
 <p>重启apache服务后，连接websocket时，会停留在连接阶段，但最终还是连接失败。</p>
@@ -360,7 +360,7 @@
 		toc_hide_index: true,
 		root: "/",
 		innerArchive: true,
-		showTags: false
+		showTags: true
 	}
 </script>
 
@@ -418,6 +418,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Openstack与云</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">笔记</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Docker</a>
               </li>
              
@@ -426,15 +434,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Openstack与云</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">ONAP</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">笔记</a>
               </li>
              
               <li class="article-tag-list-item">
