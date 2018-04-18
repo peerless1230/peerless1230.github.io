@@ -16,7 +16,7 @@
 <meta property="og:locale" content="zh-CN">
 <meta property="og:image" content="http://notafraid.me/img/nova/openstack_nova_vm_boot_1.png">
 <meta property="og:image" content="http://notafraid.me/img/nova/openstack_nova_vm_boot_2.png">
-<meta property="og:updated_time" content="2018-02-28T04:14:38.000Z">
+<meta property="og:updated_time" content="2018-04-18T15:09:48.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Nova虚拟机创建流程">
 <meta name="twitter:image" content="http://notafraid.me/img/nova/openstack_nova_vm_boot_1.png">
@@ -186,118 +186,34 @@
 <p>（图中Quantum现在演变为了Neutron，目前版本，基本结构大致和图中类似，只是变成了以Neutron为前缀）</p>
 <p>流程标注解释如下：</p>
 <ul>
-<li><ol>
-<li>客户端（<code>Horizon</code>/<code>nova client</code>命令行）使用自己的用户名密码请求认证</li>
-</ol>
-</li>
-<li><ol start="2">
-<li><code>keystone</code>通过查询在keystone的数据库user表中已存储user的相关信息，包括password加密后的hash值，并返回一个<code>token_id</code>（即令牌），和 <code>serviceCatalog</code>(某些服务的endpoint地址，在cinder创建块存储、glance-api下载镜像时会用到)</li>
-</ol>
-</li>
-<li><ol start="3">
-<li>客户端使用keystone返回的<code>token_id</code>和创建虚机的相关参数，Post请求<code>nova-api</code>创建虚拟机</li>
-</ol>
-</li>
-<li><ol start="4">
-<li><code>nova-api</code>接收到请求后，首先使用请求携带的<code>token_id</code>与<code>keystone</code>验证其有效性和连接权限</li>
-</ol>
-</li>
-<li><ol start="5">
-<li><code>keystone</code>验证通过后返回更新后的认证信息（用户角色及权限）</li>
-</ol>
-</li>
-<li><ol start="6">
-<li><code>nova api</code>检查创建虚拟机参数是否有效与合法并通过<code>nova conductor</code>请求<code>novaDB</code>数据库。检查虚拟机name是否符合命名规范<code>flavor_id</code>是否在数据库中存在；<code>image_uuid</code>是否是正确的uuid格式；检查<code>instance</code>、<code>vcpu</code>、<code>ram</code>、<code>disk</code>的数量是否超过配额</li>
-</ol>
-</li>
-<li><ol start="7">
-<li>当且仅当所有传参都有效合法时，为新实例创建nova数据库，新建一条instance记录，<code>vm_states</code>设为<code>BUILDING</code>，<code>task_state</code>设为<code>SCHEDULING</code></li>
-</ol>
-</li>
-<li><ol start="8">
-<li><code>nova api</code>远程调用传递请求、参数给<code>nova scheduler</code>，实际上就是把消息“创建一台虚拟机”丢到消息队列，然后定期查询虚机的状态。</li>
-</ol>
-</li>
-<li><ol start="9">
-<li><code>nova scheduler</code>从<code>Message Queue</code>中获取到这条消息</li>
-</ol>
-</li>
-<li><ol start="10">
-<li><code>nova scheduler</code>利用<code>nvoa conductor</code>访问nova数据库，通过<code>filter</code>过滤器+<code>weight</code>券种算法，过滤出一些合适的计算节点，然后进行排序</li>
-</ol>
-</li>
-<li><ol start="11">
-<li>更新虚机节点信息，返回一个<code>最优节点id</code>给<code>nova scheduler</code></li>
-</ol>
-</li>
-<li><ol start="12">
-<li><code>nova scheduler</code>选定host之后，通过rpc调用<code>nova-compute</code>服务，把“创建虚机”的请求交给合适的计算节点</li>
-</ol>
-</li>
-<li><ol start="13">
-<li><code>nova compute</code>收到创建虚拟机请求的消息。<code>nova-compute</code>中有一个定时任务，用于定期从数据库中查找到运行在该节点上的所有虚拟机信息，并统计得到空闲内存大小和空闲磁盘大小。然后更新数据库<code>compute_node</code>信息，以保证调度的准确性</li>
-</ol>
-</li>
-<li><ol start="14">
-<li><code>nova compute</code>通过rpc查询nova数据库中虚机的信息例如主机模板（即flavor：虚机配置模板）和id</li>
-</ol>
-</li>
-<li><ol start="15">
-<li><code>nova conductor</code>从消息队列中拿到请求查询数据库</li>
-</ol>
-</li>
-<li><ol start="16">
-<li><code>nova conductor</code>查询nova数据库</li>
-</ol>
-</li>
-<li><ol start="17">
-<li>数据库返回虚机实例信息</li>
-</ol>
-</li>
-<li><ol start="18">
-<li><code>nova compute</code>从消息队列中获取信息</li>
-</ol>
-</li>
-<li><ol start="19">
-<li><code>nova compute</code>请求<code>glance</code>的rest api，通过镜像的ID来获取镜像的URI，然后加载所需要的镜像，一般以<code>qcow2</code>格式加载到虚机实例中</li>
-</ol>
-</li>
-<li><ol start="20">
-<li><code>glance api</code>验证请求的token的有效性。</li>
-</ol>
-</li>
-<li><ol start="21">
-<li><code>glance api</code>返回镜像元数据给<code>nova-compute</code></li>
-</ol>
-</li>
-<li><ol start="22">
-<li>同理，<code>nova compute</code>请求<code>neutron api</code>配置网络，例如获取虚机ip地址</li>
-</ol>
-</li>
-<li><ol start="23">
-<li>验证<code>token</code>的有效性</li>
-</ol>
-</li>
-<li><ol start="24">
-<li><code>neutron</code>返回网络信息给<code>nova-compute</code></li>
-</ol>
-</li>
-<li><ol start="25">
-<li><code>nova-compute</code>通过传递<code>token</code>给<code>cinder apu</code>（<code>Cinder</code>的最主要用途是作为虚拟硬盘提供给 instance 使用），来分配卷给虚机实例</li>
-</ol>
-</li>
-<li><ol start="26">
-<li><code>cinder-api</code>与<code>keystone</code>验证<code>token</code>的有效性</li>
-</ol>
-</li>
-<li><ol start="27">
-<li><code>nova-compute</code>从<code>cinder-api</code>获取了块设备信息</li>
-</ol>
-</li>
-<li><ol start="28">
-<li>根据据上面配置的虚拟机信息，生成xml，写入<code>libvirt.xml</code>文件，然后调用<code>libvirt driver</code>去使用<code>libvirt.xml</code>文件启动虚拟机</li>
-</ol>
-</li>
+<li>1、客户端（<code>Horizon</code>/<code>nova client</code>命令行）使用自己的用户名密码请求认证</li>
+<li>2、<code>keystone</code>通过查询在keystone的数据库user表中已存储user的相关信息，包括password加密后的hash值，并返回一个<code>token_id</code>（即令牌），和 <code>serviceCatalog</code>(某些服务的endpoint地址，在cinder创建块存储、glance-api下载镜像时会用到)</li>
+<li>3、客户端使用keystone返回的<code>token_id</code>和创建虚机的相关参数，Post请求<code>nova-api</code>创建虚拟机</li>
+<li>4、<code>nova-api</code>接收到请求后，首先使用请求携带的<code>token_id</code>与<code>keystone</code>验证其有效性和连接权限</li>
+<li>5、<code>keystone</code>验证通过后返回更新后的认证信息（用户角色及权限）</li>
+<li>6、<code>nova api</code>检查创建虚拟机参数是否有效与合法并通过<code>nova conductor</code>请求<code>novaDB</code>数据库。检查虚拟机name是否符合命名规范<code>flavor_id</code>是否在数据库中存在；<code>image_uuid</code>是否是正确的uuid格式；检查<code>instance</code>、<code>vcpu</code>、<code>ram</code>、<code>disk</code>的数量是否超过配额</li>
+<li>7、当且仅当所有传参都有效合法时，为新实例创建nova数据库，新建一条instance记录，<code>vm_states</code>设为<code>BUILDING</code>，<code>task_state</code>设为<code>SCHEDULING</code></li>
+<li>8、<code>nova api</code>远程调用传递请求、参数给<code>nova scheduler</code>，实际上就是把消息“创建一台虚拟机”丢到消息队列，然后定期查询虚机的状态。</li>
+<li>9、<code>nova scheduler</code>从<code>Message Queue</code>中获取到这条消息</li>
+<li>10、<code>nova scheduler</code>利用<code>nvoa conductor</code>访问nova数据库，通过<code>filter</code>过滤器+<code>weight</code>券种算法，过滤出一些合适的计算节点，然后进行排序</li>
+<li>11、更新虚机节点信息，返回一个<code>最优节点id</code>给<code>nova scheduler</code></li>
+<li>12、<code>nova scheduler</code>选定host之后，通过rpc调用<code>nova-compute</code>服务，把“创建虚机”的请求交给合适的计算节点</li>
+<li>13、<code>nova compute</code>收到创建虚拟机请求的消息。<code>nova-compute</code>中有一个定时任务，用于定期从数据库中查找到运行在该节点上的所有虚拟机信息，并统计得到空闲内存大小和空闲磁盘大小。然后更新数据库<code>compute_node</code>信息，以保证调度的准确性</li>
+<li>14、<code>nova compute</code>通过rpc查询nova数据库中虚机的信息例如主机模板（即flavor：虚机配置模板）和id</li>
+<li>15、<code>nova conductor</code>从消息队列中拿到请求查询数据库</li>
+<li>16、<code>nova conductor</code>查询nova数据库</li>
+<li>17、数据库返回虚机实例信息</li>
+<li>18、<code>nova compute</code>从消息队列中获取信息</li>
+<li>19、<code>nova compute</code>请求<code>glance</code>的rest api，通过镜像的ID来获取镜像的URI，然后加载所需要的镜像，一般以<code>qcow2</code>格式加载到虚机实例中</li>
+<li>20、<code>glance api</code>验证请求的token的有效性。</li>
+<li>21、<code>glance api</code>返回镜像元数据给<code>nova-compute</code></li>
+<li>22、同理，<code>nova compute</code>请求<code>neutron api</code>配置网络，例如获取虚机ip地址</li>
+<li>23、验证<code>token</code>的有效性</li>
+<li>24、<code>neutron</code>返回网络信息给<code>nova-compute</code></li>
+<li>25、<code>nova-compute</code>通过传递<code>token</code>给<code>cinder apu</code>（<code>Cinder</code>的最主要用途是作为虚拟硬盘提供给 instance 使用），来分配卷给虚机实例</li>
+<li>26、<code>cinder-api</code>与<code>keystone</code>验证<code>token</code>的有效性</li>
+<li>27、<code>nova-compute</code>从<code>cinder-api</code>获取了块设备信息</li>
+<li>28、根据据上面配置的虚拟机信息，生成xml，写入<code>libvirt.xml</code>文件，然后调用<code>libvirt driver</code>去使用<code>libvirt.xml</code>文件启动虚拟机</li>
 </ul>
 
       
@@ -540,15 +456,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">笔记</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Docker</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">培训课件</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">笔记</a>
               </li>
              
               <li class="article-tag-list-item">
